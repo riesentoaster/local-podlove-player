@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Podlove Player for Local Files</title>
+    <style>
+        body {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        form {
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        #player {
+            width: 100%;
+            min-height: 200px;
+        }
+    </style>
+</head>
+
+<body>
+    <form onsubmit="handleUpload(); return false;">
+        <label for="audioFile">Audio File:</label>
+        <input type="file" id="audioFile" accept=".mp3,.m4a,.ogg,.wav,.aac,.flac,.webm">
+        <label for="vttFile">Transcript File (VTT):</label>
+        <input type="file" id="vttFile" accept=".vtt">
+        <button type="submit">Load Player</button>
+    </form>
+    <div id="player"></div>
+
+    <script src="https://cdn.podlove.org/web-player/embed.js"></script>
+    <script>
+        function getMimeType(file) {
+            const extension = file.name.split('.').pop().toLowerCase();
+            const mimeTypes = {
+                'mp3': 'audio/mpeg',
+                'm4a': 'audio/mp4',
+                'ogg': 'audio/ogg',
+                'wav': 'audio/wav',
+                'aac': 'audio/aac',
+                'flac': 'audio/flac',
+                'webm': 'audio/webm'
+            };
+            return mimeTypes[extension] || file.type;
+        }
+
+        async function loadVTT(file) {
+            return await fetch(URL.createObjectURL(file))
+                .then(response => response.text())
+                .then(data => {
+                    const lines = data.split('\n\n');
+                    if (lines[0] !== 'WEBVTT') {
+                        throw new Error('Invalid VTT file');
+                    }
+                    return lines
+                        .slice(1)
+                        .filter(line => line.trim() !== '')
+                        .map(line => {
+                            const sublines = line.split('\n');
+                            if (sublines.length !== 2)
+                                throw new Error('Invalid VTT file, line: ' + sublines);
+
+                            const times = sublines[0].split('-->').map(time => time.trim());
+                            return {
+                                start: times[0],
+                                end: times[1],
+                                text: sublines[1].trim()
+                            };
+                        });
+                });
+        }
+
+        async function handleUpload() {
+            const audioFile = document.getElementById('audioFile').files[0];
+            const vttFile = document.getElementById('vttFile').files[0];
+
+            if (!audioFile) alert('No audio file selected');
+
+            let transcript_json = [];
+            if (vttFile) {
+                transcript_json = await loadVTT(vttFile);
+            }
+
+            const episodeConfig = {
+                version: 5,
+                show: { title: audioFile.name },
+                title: audioFile.name,
+                audio: [{
+                    url: URL.createObjectURL(audioFile),
+                    mimeType: getMimeType(audioFile),
+                    size: audioFile.size
+                }],
+                chapters: [],
+                transcripts: transcript_json
+            };
+
+            podlovePlayer("#player", episodeConfig, { version: 5 });
+        }
+    </script>
+</body>
+
+</html>
