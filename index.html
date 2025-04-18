@@ -28,22 +28,17 @@
         async function loadVTT(file) {
             const request = await fetch(URL.createObjectURL(file));
             const response = await request.text();
-            const lines = response.split('\n\n');
-            if (lines[0] !== 'WEBVTT') throw new Error('Invalid VTT file');
-            return lines
-                .slice(1)
-                .filter(line => line.trim().length > 0)
-                .map(line => {
-                    const sublines = line.split('\n');
-                    if (sublines.length !== 2) throw new Error('Invalid VTT file, line: ' + sublines);
-                    const times = sublines[0].split('-->');
-                    if (times.length !== 2) throw new Error('Invalid VTT file because of an invalid time entry, line: ' + sublines[0]);
-                    return {
-                        start: times[0].trim(),
-                        end: times[1].trim(),
-                        text: sublines[1].trim()
-                    };
-                });
+            if (!response.startsWith('WEBVTT')) alert('Invalid VTT file, not starting with "WEBVTT"');
+            const pure_response = response.split('\n\n').slice(1).join('\n\n');
+            const regex = /([0-9.:]+)\s--\>\s([0-9.:]+)\n(.*)\n\n/g; // time --> time\n text\n\n
+
+            const transcripts = [];
+            let match;
+            while ((match = regex.exec(pure_response)) !== null) {
+                const [_entire_match, start, end, text] = match;
+                transcripts.push({ start, end, text });
+            }
+            return transcripts;
         }
 
         async function handleUpload() {
