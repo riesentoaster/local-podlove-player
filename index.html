@@ -56,7 +56,7 @@
                 transcripts: vttFile ? await loadVTT(vttFile) : []
             };
 
-            podlovePlayer("#player", episodeConfig, { version: 5 });
+            podlovePlayer("#player", episodeConfig, { version: 5, activeTab: "transcripts" });
         }
     </script>
 </head>
